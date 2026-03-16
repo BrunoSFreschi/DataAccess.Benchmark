@@ -1,6 +1,5 @@
 # DataAccess Benchmark
 
----
 
 Ao estudar performance, não estamos apenas medindo tempo de execução.
 Estamos observando a **história da engenharia de software se manifestando em código**.
