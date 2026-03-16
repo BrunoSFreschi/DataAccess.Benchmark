@@ -249,8 +249,8 @@ BenchmarkProject
  ├── Data
  │    ├── EfContext.cs
  │    └── DbFactory.cs
- ├── Benchmarks
- │    └── ClienteBenchmark.cs
+ └── Benchmarks
+      └── ClienteBenchmark.cs
 ```
 
 Separação feita para simular um projeto real.
