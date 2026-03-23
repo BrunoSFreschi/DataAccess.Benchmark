@@ -19,8 +19,8 @@ public class DbFactory
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            DROP TABLE IF EXISTS People;
-            CREATE TABLE People (
+            DROP TABLE IF EXISTS Pessoas;
+            CREATE TABLE Pessoas (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Nome TEXT NOT NULL,
                 Email TEXT NOT NULL,
