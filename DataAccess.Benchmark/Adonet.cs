@@ -46,7 +46,7 @@ internal class Adonet
     }
 
     // Estresse com múltiplas conexões paralelas
-    internal static async Task InsertParaleloAsync(int threads = 4, int porThread = 250_000)
+    internal static async Task InsertParaleloAsync(int threads = 8, int porThread = 250_000)
     {
         var sw = Stopwatch.StartNew();
 
