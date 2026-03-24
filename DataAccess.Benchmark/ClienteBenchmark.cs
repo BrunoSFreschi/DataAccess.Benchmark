@@ -6,19 +6,25 @@ namespace DataAccess.Benchmark;
 public class ClienteBenchmark
 {
     [GlobalSetup]
-    public void Setup()
+    public async void Setup()
     {
         DbFactory.ResetDatabase();
 
+    
+        Console.WriteLine("===== BENCHMARK DE INSERTS SQLITE =====\n");
+
+        // Inicializar com WAL
+        Adonet.InicializarBanco();
+
+        // Teste 1: Simples (1M)
         Adonet.InsertClientes();
 
-        Console.WriteLine("=== Sequencial 1M ===");
-        Adonet.InsertClientes(1_000_000);
+        // Teste 2: Batch (1M)
+        Adonet.InsertBatch();
 
-        Console.WriteLine("\n=== Paralelo 4 threads x 250k ===");
-        Adonet.InsertParaleloAsync(threads: 4, porThread: 250_000);
+        // Teste 3: Paralelo (sem limpar, só para comparar)
+        await Adonet.InsertParaleloAsync();
 
-        Console.WriteLine("\n=== Batch INSERT multi-row ===");
-        Adonet.InsertBatch(1_000_000, batchSize: 500);
+        Console.WriteLine("\n✓ Testes concluídos!");
     }
 }
