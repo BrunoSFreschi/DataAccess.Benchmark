@@ -109,10 +109,29 @@ internal class Adonet
     }
 
     // Paralelo - múltiplas conexões (com lock handling)
-    internal static async Task InsertParaleloAsync(int threads = 8, int quantidadePorThread = 1_000_000)
+    internal static async Task InsertParaleloAsync(int threads = 2, int quantidadePorThread = 1_000_000)
     {
         var sw = Stopwatch.StartNew();
-        var semaphore = new SemaphoreSlim(2); // Limita a 2 escritas paralelas
+
+        // ─── 1. Configurar WAL mode ANTES de iniciar as threads ───
+        using (var connSetup = new SQLiteConnection(ConnectionString))
+        {
+            connSetup.Open();
+            using var cmdSetup = connSetup.CreateCommand();
+            cmdSetup.CommandText = "PRAGMA journal_mode=WAL;";
+            cmdSetup.ExecuteNonQuery();
+
+            // Aumenta o timeout para locks
+            cmdSetup.CommandText = "PRAGMA busy_timeout=30000;";
+            cmdSetup.ExecuteNonQuery();
+        }
+
+        // ─── 2. Semáforo para limitar escritas simultâneas ───
+        // SQLite WAL permite 1 writer por vez, mas podemos enfileirar
+        var semaphore = new SemaphoreSlim(1); // ← IMPORTANTE: 1, não 2!
+
+        int totalInseridos = 0;
+        var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
 
         var tasks = Enumerable.Range(0, threads).Select(t => Task.Run(async () =>
         {
@@ -122,18 +141,33 @@ internal class Adonet
                 using var conn = new SQLiteConnection(ConnectionString);
                 conn.Open();
 
+                // Configurar busy_timeout por conexão
+                using (var pragmaCmd = conn.CreateCommand())
+                {
+                    pragmaCmd.CommandText = "PRAGMA busy_timeout=30000;";
+                    pragmaCmd.ExecuteNonQuery();
+                }
+
                 using var transaction = conn.BeginTransaction();
                 using var cmd = conn.CreateCommand();
+
+                // ─── 3. Associar o comando à transação explicitamente ───
+                cmd.Transaction = transaction;
                 cmd.CommandText = @"
-                    INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
-                    VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
+                INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
+                VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
 
                 var pNome = cmd.Parameters.Add("@Nome", DbType.String);
                 var pEmail = cmd.Parameters.Add("@Email", DbType.String);
                 var pAtivo = cmd.Parameters.Add("@Ativo", DbType.Int32);
                 var pData = cmd.Parameters.Add("@DataCriacao", DbType.String);
 
+                // ─── 4. Preparar o comando para melhor performance ───
+                cmd.Prepare();
+
                 int inicio = t * quantidadePorThread;
+                int count = 0;
+
                 for (int i = inicio; i < inicio + quantidadePorThread; i++)
                 {
                     pNome.Value = $"Nome {i}";
@@ -141,9 +175,19 @@ internal class Adonet
                     pAtivo.Value = i % 2;
                     pData.Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
                     cmd.ExecuteNonQuery();
+                    count++;
                 }
 
+                // ─── 5. Commit DENTRO do try ───
                 transaction.Commit();
+                Interlocked.Add(ref totalInseridos, count);
+
+                Console.WriteLine($"  Thread {t}: {count:N0} registros inseridos ✓");
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+                Console.WriteLine($"  Thread {t}: ERRO - {ex.Message}");
             }
             finally
             {
@@ -152,10 +196,18 @@ internal class Adonet
         }));
 
         await Task.WhenAll(tasks);
-        int total = threads * quantidadePorThread;
         sw.Stop();
 
-        Console.WriteLine($"✓ Inserts Paralelos ({threads} threads): {total:N0} registros em {sw.Elapsed.TotalSeconds:F2}s");
-        Console.WriteLine($"  Taxa: {total / sw.Elapsed.TotalSeconds:N0} inserts/s\n");
+        // ─── 6. Reportar erros se houver ───
+        if (!exceptions.IsEmpty)
+        {
+            Console.WriteLine($"  ⚠ {exceptions.Count} threads falharam!");
+            foreach (var ex in exceptions)
+                Console.WriteLine($"    → {ex.Message}");
+        }
+
+        Console.WriteLine($"✓ Inserts Paralelos ({threads} threads): " +
+                          $"{totalInseridos:N0} registros em {sw.Elapsed.TotalSeconds:F2}s");
+        Console.WriteLine($"  Taxa: {totalInseridos / sw.Elapsed.TotalSeconds:N0} inserts/s\n");
     }
 }
