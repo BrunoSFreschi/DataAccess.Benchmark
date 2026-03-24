@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Data.SQLite;
 using System.Diagnostics;
+using System.Text;
 
 namespace DataAccess.Benchmark;
 
@@ -8,7 +9,23 @@ internal class Adonet
 {
     private const string ConnectionString = "Data Source=benchmark.db;";
 
-    // Aumenta volume drasticamente
+    // Inicializa banco com WAL ativado
+    internal static void InicializarBanco()
+    {
+        using var conn = new SQLiteConnection(ConnectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA journal_mode=WAL;";
+        cmd.ExecuteNonQuery();
+
+        cmd.CommandText = "PRAGMA synchronous=NORMAL;";
+        cmd.ExecuteNonQuery();
+
+        Console.WriteLine("- Banco inicializado com WAL e otimizações");
+    }
+
+    // Simples - sem paralelismo (baseline)
     internal static void InsertClientes(int total = 1_000_000)
     {
         var sw = Stopwatch.StartNew();
@@ -36,60 +53,18 @@ internal class Adonet
             cmd.ExecuteNonQuery();
 
             if (i % 10_000 == 0)
-                Console.Write($"\r{i:N0}/{total:N0}");
+                Console.Write($"\r  Progresso: {i:N0}/{total:N0}");
         }
 
         transaction.Commit();
         sw.Stop();
 
-        Console.WriteLine($"\nTempo: {sw.Elapsed.TotalSeconds:F2}s | {total / sw.Elapsed.TotalSeconds:N0} inserts/s");
+        Console.WriteLine($"\n✓ Inserts Simples: {total:N0} registros em {sw.Elapsed.TotalSeconds:F2}s");
+        Console.WriteLine($"  Taxa: {total / sw.Elapsed.TotalSeconds:N0} inserts/s\n");
     }
 
-    // Estresse com múltiplas conexões paralelas
-    internal static async Task InsertParaleloAsync(int threads = 8, int porThread = 250_000)
-    {
-        var sw = Stopwatch.StartNew();
-
-        var tasks = Enumerable.Range(0, threads).Select(t => Task.Run(() =>
-        {
-            // SQLite precisa de WAL para suportar escritas paralelas
-            var cs = "Data Source=benchmark.db;Journal Mode=WAL;";
-            using var conn = new SQLiteConnection(cs);
-            conn.Open();
-
-            using var transaction = conn.BeginTransaction();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"
-                INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
-                VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
-
-            var pNome = cmd.Parameters.Add("@Nome", DbType.String);
-            var pEmail = cmd.Parameters.Add("@Email", DbType.String);
-            var pAtivo = cmd.Parameters.Add("@Ativo", DbType.Int32);
-            var pData = cmd.Parameters.Add("@DataCriacao", DbType.String);
-
-            int inicio = t * porThread;
-            for (int i = inicio; i < inicio + porThread; i++)
-            {
-                pNome.Value = $"Nome {i}";
-                pEmail.Value = $"email{i}@teste.com";
-                pAtivo.Value = i % 2;
-                pData.Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-                cmd.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        }));
-
-        await Task.WhenAll(tasks);
-        int total = threads * porThread;
-        sw.Stop();
-
-        Console.WriteLine($"Paralelo: {total:N0} registros em {sw.Elapsed.TotalSeconds:F2}s | {total / sw.Elapsed.TotalSeconds:N0} inserts/s");
-    }
-
-    // Batch com INSERT multi-row (estresse máximo)
-    internal static async Task InsertBatch(int total = 1_000_000, int batchSize = 500)
+    // Batch com INSERT multi-row (mais rápido)
+    internal static void InsertBatch(int total = 1_000_000, int batchSize = 500)
     {
         var sw = Stopwatch.StartNew();
         using var conn = new SQLiteConnection(ConnectionString);
@@ -102,8 +77,7 @@ internal class Adonet
         {
             int tamanho = Math.Min(batchSize, total - inseridos);
 
-            // Monta INSERT com N linhas de uma vez
-            var sb = new System.Text.StringBuilder();
+            var sb = new StringBuilder();
             sb.Append("INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao) VALUES ");
 
             using var cmd = conn.CreateCommand();
@@ -124,11 +98,64 @@ internal class Adonet
             inseridos += tamanho;
 
             if (inseridos % 50_000 == 0)
-                Console.Write($"\r{inseridos:N0}/{total:N0}");
+                Console.Write($"\r  Progresso: {inseridos:N0}/{total:N0}");
         }
 
         transaction.Commit();
         sw.Stop();
-        Console.WriteLine($"\nBatch: {total:N0} em {sw.Elapsed.TotalSeconds:F2}s | {total / sw.Elapsed.TotalSeconds:N0} inserts/s");
+
+        Console.WriteLine($"\n✓ Inserts em Batch (tamanho {batchSize}): {total:N0} registros em {sw.Elapsed.TotalSeconds:F2}s");
+        Console.WriteLine($"  Taxa: {total / sw.Elapsed.TotalSeconds:N0} inserts/s\n");
+    }
+
+    // Paralelo - múltiplas conexões (com lock handling)
+    internal static async Task InsertParaleloAsync(int threads = 8, int quantidadePorThread = 1_000_000)
+    {
+        var sw = Stopwatch.StartNew();
+        var semaphore = new SemaphoreSlim(2); // Limita a 2 escritas paralelas
+
+        var tasks = Enumerable.Range(0, threads).Select(t => Task.Run(async () =>
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                using var conn = new SQLiteConnection(ConnectionString);
+                conn.Open();
+
+                using var transaction = conn.BeginTransaction();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
+                    VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
+
+                var pNome = cmd.Parameters.Add("@Nome", DbType.String);
+                var pEmail = cmd.Parameters.Add("@Email", DbType.String);
+                var pAtivo = cmd.Parameters.Add("@Ativo", DbType.Int32);
+                var pData = cmd.Parameters.Add("@DataCriacao", DbType.String);
+
+                int inicio = t * quantidadePorThread;
+                for (int i = inicio; i < inicio + quantidadePorThread; i++)
+                {
+                    pNome.Value = $"Nome {i}";
+                    pEmail.Value = $"email{i}@teste.com";
+                    pAtivo.Value = i % 2;
+                    pData.Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                    cmd.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }));
+
+        await Task.WhenAll(tasks);
+        int total = threads * quantidadePorThread;
+        sw.Stop();
+
+        Console.WriteLine($"✓ Inserts Paralelos ({threads} threads): {total:N0} registros em {sw.Elapsed.TotalSeconds:F2}s");
+        Console.WriteLine($"  Taxa: {total / sw.Elapsed.TotalSeconds:N0} inserts/s\n");
     }
 }
