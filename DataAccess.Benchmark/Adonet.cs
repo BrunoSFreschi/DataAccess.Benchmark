@@ -9,22 +9,6 @@ internal class Adonet
 {
     private const string ConnectionString = "Data Source=benchmark.db;";
 
-    // Inicializa banco com WAL ativado
-    internal static void InicializarBanco()
-    {
-        using var conn = new SQLiteConnection(ConnectionString);
-        conn.Open();
-
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "PRAGMA journal_mode=WAL;";
-        cmd.ExecuteNonQuery();
-
-        cmd.CommandText = "PRAGMA synchronous=NORMAL;";
-        cmd.ExecuteNonQuery();
-
-        Console.WriteLine("- Banco inicializado com WAL e otimizações");
-    }
-
     // Simples - sem paralelismo (baseline)
     internal static void InsertClientes(int total = 1_000_000)
     {
