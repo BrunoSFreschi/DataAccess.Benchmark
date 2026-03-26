@@ -1,3 +1,3 @@
 ﻿using DataAccess.Benchmark;
 
-new ClienteBenchmark().Setup();
+ClienteBenchmark.Setup();
