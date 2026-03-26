@@ -6,15 +6,14 @@ namespace DataAccess.Benchmark;
 public class ClienteBenchmark
 {
     [GlobalSetup]
-    public async void Setup()
+    public static async void Setup()
     {
         DbFactory.ResetDatabase();
 
-    
-        Console.WriteLine("===== BENCHMARK DE INSERTS SQLITE =====\n");
+        DbFactory.InicializarBanco();
 
-        // Inicializar com WAL
-        Adonet.InicializarBanco();
+
+        Console.WriteLine("===== BENCHMARK DE INSERTS SQLITE =====\n");
 
         // Teste 1: Simples (1M)
         Adonet.InsertClientes();
