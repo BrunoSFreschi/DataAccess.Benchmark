@@ -11,7 +11,7 @@ Para aprofundar os estudos e entender as especificidades de cada provedor de dad
 ### 2. Artigos de Comparação Técnica
 
 - [ADO.NET vs. Entity Framework (Stack Overflow)](https://www.google.com/search?q=https://stackoverflow.com/questions/1126760/adonet-vs-entity-framework&authuser=1): Uma das discussões mais ricas sobre quando escolher cada abordagem.
-- [Performance Benchmark (Dapper vs EF vs ADO.NET)](https://www.google.com/search?q=https://github.com/StackExchange/Dapper%23performance&authuser=1):** O repositório oficial do Dapper mantém uma tabela comparativa de performance onde o ADO.NET é o "baseline" (padrão de referência).
+- [Performance Benchmark (Dapper vs EF vs ADO.NET)](https://www.google.com/search?q=https://github.com/StackExchange/Dapper%23performance&authuser=1): O repositório oficial do Dapper mantém uma tabela comparativa de performance onde o ADO.NET é o "baseline" (padrão de referência).
 
 ### 3. Melhores Práticas
 
