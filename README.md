@@ -112,6 +112,9 @@ Você controla conexão.
 Você controla leitura.
 Você controla tudo.
 
+
+[Introdução ao ADO.Net](./Docs/ADONET.md)
+
 Vantagens:
 
 * Máxima performance
