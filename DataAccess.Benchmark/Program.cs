@@ -1,3 +1,3 @@
 ﻿using DataAccess.Benchmark;
 
-ClienteBenchmark.Setup();
+ClienteBenchmark.AdonetExec();
