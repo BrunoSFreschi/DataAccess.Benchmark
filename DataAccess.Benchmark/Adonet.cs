@@ -93,105 +93,92 @@ internal class Adonet
     }
 
     // Paralelo - múltiplas conexões (com lock handling)
-    internal static async Task InsertParaleloAsync(int threads = 2, int quantidadePorThread = 1_000_000)
+    /*
+     Resultado esperado: o modo paralelo será mais lento que o batch serial no SQLite. 
+     Isso é normal — SQLite serializa escritas internamente. 
+     O benchmark serve justamente para demonstrar que paralelismo nem sempre é vantagem com SQLite. 
+     O overhead do lock contention consome o ganho teórico.
+    */
+    internal static void InsertParaleloSimples(int total = 1_000_000, int grauParalelismo = 4, int batchSize = 500)
     {
         var sw = Stopwatch.StartNew();
+        int progresso = 0;
+        object consoleLock = new object();
 
-        // ─── 1. Configurar WAL mode ANTES de iniciar as threads ───
-        using (var connSetup = new SQLiteConnection(ConnectionString))
-        {
-            connSetup.Open();
-            using var cmdSetup = connSetup.CreateCommand();
-            cmdSetup.CommandText = "PRAGMA journal_mode=WAL;";
-            cmdSetup.ExecuteNonQuery();
-
-            // Aumenta o timeout para locks
-            cmdSetup.CommandText = "PRAGMA busy_timeout=30000;";
-            cmdSetup.ExecuteNonQuery();
-        }
-
-        // ─── 2. Semáforo para limitar escritas simultâneas ───
-        // SQLite WAL permite 1 writer por vez, mas podemos enfileirar
-        var semaphore = new SemaphoreSlim(1); // ← IMPORTANTE: 1, não 2!
-
-        int totalInseridos = 0;
-        var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
-
-        var tasks = Enumerable.Range(0, threads).Select(t => Task.Run(async () =>
-        {
-            await semaphore.WaitAsync();
-            try
+        var tasks = Enumerable.Range(0, grauParalelismo).Select(worker =>
+            Task.Run(() =>
             {
+                int porWorker = total / grauParalelismo;
+                int inicio = worker * porWorker + 1;
+                int fim = (worker == grauParalelismo - 1) ? total : inicio + porWorker - 1;
+
                 using var conn = new SQLiteConnection(ConnectionString);
                 conn.Open();
 
-                // Configurar busy_timeout por conexão
-                using (var pragmaCmd = conn.CreateCommand())
+                using var pragma = conn.CreateCommand();
+                pragma.CommandText = "PRAGMA busy_timeout = 5000;";
+                pragma.ExecuteNonQuery();
+
+                for (int i = inicio; i <= fim; i += batchSize)
                 {
-                    pragmaCmd.CommandText = "PRAGMA busy_timeout=30000;";
-                    pragmaCmd.ExecuteNonQuery();
+                    int tamanho = Math.Min(batchSize, fim - i + 1);
+
+                    bool inserido = false;
+                    int tentativa = 0;
+
+                    while (!inserido)
+                    {
+                        try
+                        {
+                            using var tx = conn.BeginTransaction();
+                            using var cmd = conn.CreateCommand();
+
+                            var sb = new StringBuilder("INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao) VALUES ");
+
+                            for (int j = 0; j < tamanho; j++)
+                            {
+                                if (j > 0) sb.Append(",");
+                                sb.Append($"(@N{j},@E{j},@A{j},@D{j})");
+
+                                int idx = i + j;
+                                cmd.Parameters.AddWithValue($"@N{j}", $"Nome {idx}");
+                                cmd.Parameters.AddWithValue($"@E{j}", $"email{idx}@teste.com");
+                                cmd.Parameters.AddWithValue($"@A{j}", idx % 2);
+                                cmd.Parameters.AddWithValue($"@D{j}", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
+                            }
+
+                            cmd.CommandText = sb.ToString();
+                            cmd.Transaction = tx;
+                            cmd.ExecuteNonQuery();
+                            tx.Commit();
+
+                            int atual = Interlocked.Add(ref progresso, tamanho);
+                            if (atual % 50_000 == 0)
+                            {
+                                lock (consoleLock)
+                                    Console.Write($"\r  Progresso: {atual:N0}/{total:N0}");
+                            }
+
+                            inserido = true;
+                        }
+                        catch (SQLiteException ex) when (
+                            ex.ResultCode == SQLiteErrorCode.Busy ||
+                            ex.ResultCode == SQLiteErrorCode.Locked)
+                        {
+                            tentativa++;
+                            if (tentativa > 10) throw;
+                            Thread.Sleep(50 * tentativa);
+                        }
+                    }
                 }
+            })
+        ).ToArray();
 
-                using var transaction = conn.BeginTransaction();
-                using var cmd = conn.CreateCommand();
+        Task.WaitAll(tasks);
 
-                // ─── 3. Associar o comando à transação explicitamente ───
-                cmd.Transaction = transaction;
-                cmd.CommandText = @"
-                INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
-                VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
-
-                var pNome = cmd.Parameters.Add("@Nome", DbType.String);
-                var pEmail = cmd.Parameters.Add("@Email", DbType.String);
-                var pAtivo = cmd.Parameters.Add("@Ativo", DbType.Int32);
-                var pData = cmd.Parameters.Add("@DataCriacao", DbType.String);
-
-                // ─── 4. Preparar o comando para melhor performance ───
-                cmd.Prepare();
-
-                int inicio = t * quantidadePorThread;
-                int count = 0;
-
-                for (int i = inicio; i < inicio + quantidadePorThread; i++)
-                {
-                    pNome.Value = $"Nome {i}";
-                    pEmail.Value = $"email{i}@teste.com";
-                    pAtivo.Value = i % 2;
-                    pData.Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-                    cmd.ExecuteNonQuery();
-                    count++;
-                }
-
-                // ─── 5. Commit DENTRO do try ───
-                transaction.Commit();
-                Interlocked.Add(ref totalInseridos, count);
-
-                Console.WriteLine($"  Thread {t}: {count:N0} registros inseridos ✓");
-            }
-            catch (Exception ex)
-            {
-                exceptions.Add(ex);
-                Console.WriteLine($"  Thread {t}: ERRO - {ex.Message}");
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        }));
-
-        await Task.WhenAll(tasks);
         sw.Stop();
-
-        // ─── 6. Reportar erros se houver ───
-        if (!exceptions.IsEmpty)
-        {
-            Console.WriteLine($"  ⚠ {exceptions.Count} threads falharam!");
-            foreach (var ex in exceptions)
-                Console.WriteLine($"    → {ex.Message}");
-        }
-
-        Console.WriteLine($"✓ Inserts Paralelos ({threads} threads): " +
-                          $"{totalInseridos:N0} registros em {sw.Elapsed.TotalSeconds:F2}s");
-        Console.WriteLine($"  Taxa: {totalInseridos / sw.Elapsed.TotalSeconds:N0} inserts/s\n");
+        Console.WriteLine($"\n✓ Inserts Paralelos: {total:N0} registros em {sw.Elapsed.TotalSeconds:F2}s");
+        Console.WriteLine($"  Taxa: {total / sw.Elapsed.TotalSeconds:N0} inserts/s\n");
     }
+
 }
