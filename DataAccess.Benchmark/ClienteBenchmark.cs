@@ -6,7 +6,7 @@ namespace DataAccess.Benchmark;
 public class ClienteBenchmark
 {
     [GlobalSetup]
-    public static async void Setup()
+    public static void Setup()
     {
         DbFactory.ResetDatabase();
 
@@ -22,7 +22,7 @@ public class ClienteBenchmark
         Adonet.InsertBatch();
 
         // Teste 3: Paralelo (sem limpar, só para comparar)
-        await Adonet.InsertParaleloAsync();
+        Adonet.InsertParaleloSimples();
 
         Console.WriteLine("\n✓ Testes concluídos!");
     }
