@@ -15,7 +15,7 @@ Para aprofundar os estudos e entender as especificidades de cada provedor de dad
 
 ### 3. Melhores Práticas
 
-- [Gerenciamento de Conexões e Pooling](https://learn.microsoft.com/pt-br/dotnet/framework/data/adonet/sql-server-connection-pooling):** Essencial para entender como o ADO.NET otimiza a abertura e fechamento de conexões com o banco.
+- [Gerenciamento de Conexões e Pooling](https://learn.microsoft.com/pt-br/dotnet/framework/data/adonet/sql-server-connection-pooling): Essencial para entender como o ADO.NET otimiza a abertura e fechamento de conexões com o banco.
 - [Segurança: Evitando SQL Injection](https://www.google.com/search?q=https://learn.microsoft.com/pt-br/dotnet/framework/data/adonet/commands-and-parameters&authuser=1): Guia sobre como utilizar o `SqlParameter` corretamente no ADO.NET.
 
 ---
