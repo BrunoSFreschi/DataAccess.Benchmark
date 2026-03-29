@@ -1,7 +1,6 @@
-﻿using System.Data;
+﻿using Dapper;
 using System.Data.SQLite;
 using System.Diagnostics;
-using Dapper;
 
 namespace DataAccess.Benchmark;
 
@@ -11,22 +10,22 @@ internal class Dapper
     private const string ConnectionString = "Data Source=benchmark.db;";
     private const int Total = 1_000_000;
 
-    internal static void InsertSimplesDapper(int total = Total)
+    internal static void InsertSimples(int total = Total)
     {
         var sw = Stopwatch.StartNew();
 
-        using var conn = new SQLiteConnection(ConnectionString);
-        conn.Open();
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
 
-        using var transaction = conn.BeginTransaction();
+        using var transaction = connection.BeginTransaction();
 
         var sql = @"
-        INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
-        VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
+            INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
+            VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
 
         for (int i = 1; i <= total; i++)
         {
-            conn.Execute(sql, new
+            connection.Execute(sql, new
             {
                 Nome = $"Nome {i}",
                 Email = $"email{i}@teste.com",
