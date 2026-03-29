@@ -1,18 +1,14 @@
-﻿using BenchmarkDotNet.Attributes;
+﻿namespace DataAccess.Benchmark;
 
-namespace DataAccess.Benchmark;
-
-[MemoryDiagnoser]
 public class ClienteBenchmark
 {
-    [GlobalSetup]
     internal static void AdonetExec()
     {
         DbFactory.ResetDatabase();
 
         DbFactory.InicializarBanco();
 
-        Console.WriteLine("===== BENCHMARK DE INSERTS SQLITE =====\n");
+        Console.WriteLine("===== BENCHMARK DE INSERTS ADO Net =====\n");
 
         Adonet.InsertSimples();
         Adonet.InsertBatch();
@@ -27,7 +23,7 @@ public class ClienteBenchmark
 
         DbFactory.InicializarBanco();
 
-        Console.WriteLine("===== BENCHMARK DE INSERTS SQLITE =====\n");
+        Console.WriteLine("===== BENCHMARK DE INSERTS Dapper =====\n");
 
         Dapper.InsertSimples();
 
