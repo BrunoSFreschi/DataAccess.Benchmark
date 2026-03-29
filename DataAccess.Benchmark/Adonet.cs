@@ -66,27 +66,27 @@ internal class Adonet
     {
         var sw = Stopwatch.StartNew();
 
-        using var conn = new SQLiteConnection(ConnectionString);
-        conn.Open();
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
 
-        using var transaction = conn.BeginTransaction();
-        using var cmd = conn.CreateCommand();
+        using var transaction = connection.BeginTransaction();
+        using var cmd = connection.CreateCommand();
 
         cmd.CommandText = @"
             INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
             VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
 
-        var pNome = cmd.Parameters.Add("@Nome", DbType.String);
-        var pEmail = cmd.Parameters.Add("@Email", DbType.String);
-        var pAtivo = cmd.Parameters.Add("@Ativo", DbType.Int32);
-        var pData = cmd.Parameters.Add("@DataCriacao", DbType.String);
+        var nome = cmd.Parameters.Add("@Nome", DbType.String);
+        var email = cmd.Parameters.Add("@Email", DbType.String);
+        var ativo = cmd.Parameters.Add("@Ativo", DbType.Int32);
+        var data = cmd.Parameters.Add("@DataCriacao", DbType.String);
 
         for (int i = 1; i <= total; i++)
         {
-            pNome.Value = $"Nome {i}";
-            pEmail.Value = $"email{i}@teste.com";
-            pAtivo.Value = i % 2;
-            pData.Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            nome.Value = $"Nome {i}";
+            email.Value = $"email{i}@teste.com";
+            ativo.Value = i % 2;
+            data.Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
 
             cmd.ExecuteNonQuery();
 
