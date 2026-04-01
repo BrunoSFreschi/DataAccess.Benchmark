@@ -26,7 +26,20 @@ public class ClienteBenchmark
         Console.WriteLine("===== BENCHMARK DE INSERTS Dapper =====\n");
 
         Dapper.InsertSimples();
+        Dapper.InsertBatch();
+        //Dapper.InsertParalelo();
+    }
 
-        throw new NotImplementedException();
+    internal static void EntityExec()
+    {
+        DbFactory.ResetDatabase();
+
+        DbFactory.InicializarBanco();
+
+        Console.WriteLine("===== BENCHMARK DE INSERTS  Entity =====\n");
+
+        Entity.InsertSimples();
+        Entity.InsertBatch();
+        Entity.InsertParalelo();
     }
 }
