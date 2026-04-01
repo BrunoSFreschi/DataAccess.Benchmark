@@ -10,6 +10,11 @@ internal class Dapper
     private const string ConnectionString = "Data Source=benchmark.db;";
     private const int Total = 1_000_000;
 
+    internal static void InsertBatch(int total = Total)
+    {
+
+    }
+
     internal static void InsertSimples(int total = Total)
     {
         var sw = Stopwatch.StartNew();
