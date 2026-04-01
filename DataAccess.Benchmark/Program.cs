@@ -3,3 +3,5 @@
 ClienteBenchmark.AdonetExec();
 
 ClienteBenchmark.DapperExec();
+
+ClienteBenchmark.EntityExec();
