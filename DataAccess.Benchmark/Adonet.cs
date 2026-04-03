@@ -97,7 +97,7 @@ internal class Adonet
         transaction.Commit();
         sw.Stop();
 
-        PrintResultado("Insert Simples", total, sw.Elapsed);
+        Messages.PrintResultado("Insert Simples", total, sw.Elapsed);
     }
 
     /// <summary>
@@ -209,7 +209,7 @@ internal class Adonet
         transaction.Commit();
         sw.Stop();
 
-        PrintResultado($"Insert Batch (batchSize={batchSize})", total, sw.Elapsed);
+        Messages.PrintResultado($"Insert Batch (batchSize={batchSize})", total, sw.Elapsed);
     }
 
     /// <summary>
@@ -363,16 +363,6 @@ internal class Adonet
 
         sw.Stop();
 
-        PrintResultado($"Insert Paralelo (threads={grauParalelismo}, batchSize={batchSize})", total, sw.Elapsed);
-    }
-
-    private static void PrintResultado(string descricao, int total, TimeSpan tempo)
-    {
-        Console.WriteLine();
-        Console.WriteLine($"[{descricao}]");
-        Console.WriteLine($"Registros: {total:N0}");
-        Console.WriteLine($"Tempo: {tempo.TotalSeconds:F2}s");
-        Console.WriteLine($"Taxa: {total / tempo.TotalSeconds:N0} registros/s");
-        Console.WriteLine();
+        Messages.PrintResultado($"Insert Paralelo (threads={grauParalelismo}, batchSize={batchSize})", total, sw.Elapsed);
     }
 }
