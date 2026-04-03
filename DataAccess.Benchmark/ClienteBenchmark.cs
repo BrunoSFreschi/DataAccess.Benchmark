@@ -27,7 +27,9 @@ public class ClienteBenchmark
 
         Dapper.InsertSimples();
         Dapper.InsertBatch();
-        //Dapper.InsertParalelo();
+        Dapper.InsertParalelo();
+
+        Console.WriteLine("\n✓ Testes concluídos!");
     }
 
     internal static void EntityExec()
@@ -41,5 +43,7 @@ public class ClienteBenchmark
         Entity.InsertSimples();
         Entity.InsertBatch();
         Entity.InsertParalelo();
+
+        Console.WriteLine("\n✓ Testes concluídos!");
     }
 }
