@@ -338,19 +338,5 @@ O papel do engenheiro é entender o motivo.
 
 ---
 
-# Próximos estudos recomendados
-
-* Bulk Insert EF Core
-* Compiled Queries EF Core
-* Connection Pooling
-* Change Tracking interno do EF
-* Span / Memory no DataReader
-* Pipeline do Dapper
-* Query Plan SQL
-
-Quando você entende isso, você sai do nível júnior.
-
----
-
 > "Performance não é sobre escrever código rápido.
 > É sobre entender o custo de cada decisão."
