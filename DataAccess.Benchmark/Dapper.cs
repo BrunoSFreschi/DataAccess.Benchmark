@@ -1,21 +1,50 @@
 ﻿using Dapper;
 using System.Data.SQLite;
 using System.Diagnostics;
+using static DataAccess.Benchmark.Functions;
 
 namespace DataAccess.Benchmark;
 
 internal class Dapper
-{
-
-    private const string ConnectionString = "Data Source=benchmark.db;";
-    private const int Total = 1_000_000;
-    private const int BatchSize = 500;
-
-    internal static void InsertBatch(int total = Total, int batchSize = BatchSize)
+{    
+    internal static void InsertSimples(int total = BenchmarkConfig.Total)
     {
         var sw = Stopwatch.StartNew();
 
-        using var connection = new SQLiteConnection(ConnectionString);
+        using var connection = new SQLiteConnection(BenchmarkConfig.ConnectionString);
+        connection.Open();
+
+        using var transaction = connection.BeginTransaction();
+
+        var sql = @"
+            INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
+            VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
+
+        for (int i = 1; i <= total; i++)
+        {
+            connection.Execute(sql, new
+            {
+                Nome = $"Nome {i}",
+                Email = $"email{i}@teste.com",
+                Ativo = i % 2,
+                DataCriacao = DateTime.UtcNow
+            }, transaction);
+
+            if (i % 10_000 == 0)
+                Console.Write($"\rProgresso: {i:N0}/{total:N0}");
+        }
+
+        transaction.Commit();
+        sw.Stop();
+
+        Functions.PrintResultado("Insert Simples Dapper", total, sw.Elapsed);
+    }
+
+    internal static void InsertBatch(int total = BenchmarkConfig.Total, int batchSize = BenchmarkConfig.BatchSize)
+    {
+        var sw = Stopwatch.StartNew();
+
+        using var connection = new SQLiteConnection(BenchmarkConfig.ConnectionString);
         connection.Open();
 
         using var transaction = connection.BeginTransaction();
@@ -53,10 +82,10 @@ internal class Dapper
         transaction.Commit();
         sw.Stop();
 
-        Messages.PrintResultado("Insert Batch Dapper", total, sw.Elapsed);
+        Functions.PrintResultado("Insert Batch Dapper", total, sw.Elapsed);
     }
 
-    internal static void InsertParalelo(int total = Total, int grauParalelismo = 4, int batchSize = BatchSize)
+    internal static void InsertParalelo(int total = BenchmarkConfig.Total, int grauParalelismo = 4, int batchSize = BenchmarkConfig.BatchSize)
     {
         var sw = Stopwatch.StartNew();
 
@@ -70,7 +99,7 @@ internal class Dapper
                 int inicio = worker * porWorker + 1;
                 int fim = (worker == grauParalelismo - 1) ? total : inicio + porWorker - 1;
 
-                using var conn = new SQLiteConnection(ConnectionString);
+                using var conn = new SQLiteConnection(BenchmarkConfig.ConnectionString);
                 conn.Open();
 
                 conn.Execute("PRAGMA busy_timeout = 5000;");
@@ -141,42 +170,9 @@ internal class Dapper
 
         sw.Stop();
 
-        Messages.PrintResultado(
+        Functions.PrintResultado(
             $"Insert Paralelo Dapper (threads={grauParalelismo}, batchSize={batchSize})",
             total,
             sw.Elapsed);
-    }
-
-    internal static void InsertSimples(int total = Total)
-    {
-        var sw = Stopwatch.StartNew();
-
-        using var connection = new SQLiteConnection(ConnectionString);
-        connection.Open();
-
-        using var transaction = connection.BeginTransaction();
-
-        var sql = @"
-            INSERT INTO Pessoas (Nome, Email, Ativo, DataCriacao)
-            VALUES (@Nome, @Email, @Ativo, @DataCriacao)";
-
-        for (int i = 1; i <= total; i++)
-        {
-            connection.Execute(sql, new
-            {
-                Nome = $"Nome {i}",
-                Email = $"email{i}@teste.com",
-                Ativo = i % 2,
-                DataCriacao = DateTime.UtcNow
-            }, transaction);
-
-            if (i % 10_000 == 0)
-                Console.Write($"\rProgresso: {i:N0}/{total:N0}");
-        }
-
-        transaction.Commit();
-        sw.Stop();
-
-        Messages.PrintResultado("Insert Simples Dapper", total, sw.Elapsed);
     }
 }
