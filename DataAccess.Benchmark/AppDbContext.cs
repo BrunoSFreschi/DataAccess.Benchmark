@@ -21,7 +21,6 @@ public class AppDbContext : DbContext
     {
         var entity = modelBuilder.Entity<Cliente>();
 
-        // 🔗 Nome da tabela (igual ao seu benchmark)
         entity.ToTable("Pessoas");
 
         entity.HasKey(c => c.Id);
@@ -29,7 +28,6 @@ public class AppDbContext : DbContext
         entity.Property(c => c.Id)
             .ValueGeneratedOnAdd();
 
-        // 🔥 Mapeando nomes corretos das colunas
         entity.Property(c => c.Name)
             .HasColumnName("Nome")
             .IsRequired()
@@ -47,6 +45,6 @@ public class AppDbContext : DbContext
         entity.Property(c => c.CreateAt)
             .HasColumnName("DataCriacao")
             .IsRequired()
-            .HasColumnType("TEXT"); // SQLite padrão
+            .HasColumnType("TEXT");
     }
 }
