@@ -14,14 +14,17 @@ public class ClienteBenchmark
         Adonet.InsertBatch();
         Adonet.InsertParalelo();
 
-        Console.WriteLine("\n✓ Testes concluídos!");
+        Console.WriteLine("\nTestes concluídos!");
     }
 
     internal static void DapperExec()
     {
-        DbFactory.ResetDatabase();
-
-        DbFactory.InicializarBanco();
+        bool clearDb = true;
+        if (clearDb)
+        {
+            DbFactory.ResetDatabase();
+            DbFactory.InicializarBanco();
+        }
 
         Console.WriteLine("===== BENCHMARK DE INSERTS Dapper =====\n");
 
@@ -29,14 +32,17 @@ public class ClienteBenchmark
         Dapper.InsertBatch();
         Dapper.InsertParalelo();
 
-        Console.WriteLine("\n✓ Testes concluídos!");
+        Console.WriteLine("\nTestes concluídos!");
     }
 
     internal static void EntityExec()
     {
-        DbFactory.ResetDatabase();
-
-        DbFactory.InicializarBanco();
+        bool clearDb = true;
+        if (clearDb)
+        {
+            DbFactory.ResetDatabase();
+            DbFactory.InicializarBanco();
+        }
 
         Console.WriteLine("===== BENCHMARK DE INSERTS  Entity =====\n");
 
@@ -44,6 +50,6 @@ public class ClienteBenchmark
         Entity.InsertBatch();
         Entity.InsertParalelo();
 
-        Console.WriteLine("\n✓ Testes concluídos!");
+        Console.WriteLine("\nTestes concluídos!");
     }
 }
