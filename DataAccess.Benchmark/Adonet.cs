@@ -2,16 +2,12 @@
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.Text;
+using static DataAccess.Benchmark.Functions;
 
 namespace DataAccess.Benchmark;
 
 internal class Adonet
 {
-    private const string ConnectionString = "Data Source=benchmark.db;";
-    private const int Total = 1_000_000;
-    private const int BatchSize = 500;
-
-
     /// <summary>
     /// Realiza a inserção de registros na tabela <c>Pessoas</c> de forma sequencial,
     /// utilizando ADO.NET com comandos parametrizados dentro de uma única transação.
@@ -62,11 +58,11 @@ internal class Adonet
     /// </example>
     /// <seealso cref="InsertBatch"/>
     /// <seealso cref="InsertParalelo"/>
-    internal static void InsertSimples(int total = Total)
+    internal static void InsertSimples(int total = BenchmarkConfig.Total)
     {
         var sw = Stopwatch.StartNew();
 
-        using var connection = new SQLiteConnection(ConnectionString);
+        using var connection = new SQLiteConnection(BenchmarkConfig.ConnectionString);
         connection.Open();
 
         using var transaction = connection.BeginTransaction();
@@ -97,7 +93,7 @@ internal class Adonet
         transaction.Commit();
         sw.Stop();
 
-        Messages.PrintResultado("Insert Simples", total, sw.Elapsed);
+        Functions.PrintResultado("Insert Simples", total, sw.Elapsed);
     }
 
     /// <summary>
@@ -163,11 +159,11 @@ internal class Adonet
     /// </example>
     /// <seealso cref="InsertSimples"/>
     /// <seealso cref="InsertParalelo"/>
-    internal static void InsertBatch(int total = Total, int batchSize = BatchSize)
+    internal static void InsertBatch(int total = BenchmarkConfig.Total, int batchSize = BenchmarkConfig.BatchSize)
     {
         var sw = Stopwatch.StartNew();
 
-        using var conn = new SQLiteConnection(ConnectionString);
+        using var conn = new SQLiteConnection(BenchmarkConfig.ConnectionString);
         conn.Open();
 
         using var transaction = conn.BeginTransaction();
@@ -209,7 +205,7 @@ internal class Adonet
         transaction.Commit();
         sw.Stop();
 
-        Messages.PrintResultado($"Insert Batch (batchSize={batchSize})", total, sw.Elapsed);
+        Functions.PrintResultado($"Insert Batch (batchSize={batchSize})", total, sw.Elapsed);
     }
 
     /// <summary>
@@ -276,7 +272,7 @@ internal class Adonet
     /// </example>
     /// <seealso cref="InsertSimples"/>
     /// <seealso cref="InsertBatch"/>
-    internal static void InsertParalelo(int total = Total, int grauParalelismo = 4, int batchSize = BatchSize)
+    internal static void InsertParalelo(int total = BenchmarkConfig.Total, int grauParalelismo = 4, int batchSize = BenchmarkConfig.BatchSize)
     {
         var sw = Stopwatch.StartNew();
 
@@ -290,7 +286,7 @@ internal class Adonet
                 int inicio = worker * porWorker + 1;
                 int fim = (worker == grauParalelismo - 1) ? total : inicio + porWorker - 1;
 
-                using var conn = new SQLiteConnection(ConnectionString);
+                using var conn = new SQLiteConnection(BenchmarkConfig.ConnectionString);
                 conn.Open();
 
                 using var pragma = conn.CreateCommand();
@@ -363,6 +359,6 @@ internal class Adonet
 
         sw.Stop();
 
-        Messages.PrintResultado($"Insert Paralelo (threads={grauParalelismo}, batchSize={batchSize})", total, sw.Elapsed);
+        Functions.PrintResultado($"Insert Paralelo (threads={grauParalelismo}, batchSize={batchSize})", total, sw.Elapsed);
     }
 }
