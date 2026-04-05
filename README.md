@@ -113,7 +113,7 @@ Você controla leitura.
 Você controla tudo.
 
 
-[Introdução ao ADO.Net](./Docs/ADONET.md)
+[Guia ao ADO.Net](./Docs/ADONET.md)
 
 Vantagens:
 
@@ -141,6 +141,8 @@ Usado em:
 Dapper é um micro-ORM criado pela equipe do StackOverflow.
 
 Ele mantém SQL manual, mas remove o código repetitivo.
+
+[Guia Dapper](./Docs/dapper.md)
 
 Características:
 
@@ -178,6 +180,8 @@ Características:
 * DbContext
 * Relacionamentos
 * Lazy / Eager loading
+
+[Guia ao entity-framework](./Docs/entity.md)
 
 Vantagens:
 
